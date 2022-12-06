@@ -15,6 +15,7 @@ def calories(input: Path) -> None:
 
     calories = [sum(elf) for elf in elves]
     print(f"The elf carrying the most calories is carrying {max(calories)} calories")
+    print(f"The top three elves are carrying {sum(sorted(calories)[-3:])} calories")
 
 
 if __name__ == "__main__":
