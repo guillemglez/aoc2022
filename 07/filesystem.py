@@ -58,8 +58,19 @@ def filesystem(input: Path) -> None:
                     curr[loc] = int(size)
 
     threshold: Final = 100000
-    sizes = sum([sz for sz in dirlist(fs) if sz <= threshold])
-    print(f"The size of directories over {threshold} is {sizes}")
+    total_thresholded_size = sum([sz for sz in dirlist(fs) if sz <= threshold])
+    print(f"The size of directories over {threshold} is {total_thresholded_size}")
+
+    total_size: Final = 70000000
+    needed_space: Final = 30000000
+    used_space: Final = dirsize(fs)
+    current_free: Final = total_size - used_space
+    needs_freeing: Final = needed_space - current_free
+    sizes = [sz for sz in dirlist(fs)]
+    for s in sorted(sizes):
+        if s > needs_freeing:
+            print(f"Freeing the directory with size {s} will be enough")
+            return
 
 
 if __name__ == "__main__":
