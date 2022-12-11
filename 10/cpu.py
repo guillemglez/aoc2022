@@ -1,4 +1,5 @@
 import enum
+import os
 from pathlib import Path
 from typing import Final
 
@@ -23,6 +24,8 @@ class Cpu:
             )
         }
 
+        self.crt: list[list[bool]] = [[]]
+
     def strength(self) -> int:
         return self.cycle * self.x
 
@@ -30,6 +33,14 @@ class Cpu:
         self.cycle += 1
         if self.cycle in self.strengths.keys():
             self.strengths[self.cycle] = self.strength()
+
+        # Draw CRT
+        pixel: Final = (self.cycle - 1) % 40
+        if pixel == 0:
+            self.crt.append([])
+        assert len(self.crt[-1]) == pixel, f"{pixel}!={self.crt[-1]}"
+        value: Final = abs(pixel % 40 - self.x) < 2
+        self.crt[-1].append(value)
 
     def process(self, op: Op, arg: int | None) -> None:
         self.increase_cycle()
@@ -51,6 +62,12 @@ class Cpu:
             strengths.append(strength)
         return sum(strengths)
 
+    def printable_crt(self) -> str:
+        lines: list[str] = []
+        for line in self.crt:
+            lines.append("".join(["\u2588" if pix else " " for pix in line]))
+        return os.linesep.join(lines)
+
 
 def cpu(input: Path) -> None:
     instructions: list[tuple[Op, int | None]] = []
@@ -69,6 +86,7 @@ def cpu(input: Path) -> None:
 
     cpu = Cpu(instructions)
     print(f"The sum of the final strengths is {cpu.run()}")
+    print(f"The CRT screen draws:{cpu.printable_crt()}")
 
 
 if __name__ == "__main__":
