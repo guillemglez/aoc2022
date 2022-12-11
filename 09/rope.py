@@ -93,6 +93,21 @@ def rope(input: Path) -> None:
 
     print(f"The tail of the rope visited {len(set(tail))} different positions.")
 
+    # Part two
+    knots: list[list[Position]] = [[(0, 0)] for knot in range(10)]
+    for direction, steps in commands:
+        for s in range(steps):
+            for k, knot in enumerate(knots):
+                if k == 0:  # head
+                    knot.append(move(knot[-1], direction))
+                else:  # other
+                    front = knots[k - 1][-1]
+                    knot.append(react(front, knot[-1]))
+
+    print(
+        f"The tail of the rope with 10 knots visited {len(set(knots[-1]))} different positions."
+    )
+
 
 if __name__ == "__main__":
     rope(Path(__file__).parent / "input")
