@@ -65,6 +65,32 @@ class Monkey:
         return outcome
 
 
+class Item:
+    def __init__(self, worry: int, current_monkey: Monkey) -> None:
+        self.worry = worry
+        self.inspected: dict[int, int] = {current_monkey.index: 1}
+        self.history: list[tuple[int, int]] = [(current_monkey.index, 0)]
+
+    def inspect(self, new_worry: int, monkey: Monkey) -> None:
+        self.history.append((monkey.index, new_worry - self.worry))
+        self.worry = new_worry
+        if monkey.index not in self.inspected.keys():
+            self.inspected[monkey.index] = 0
+        self.inspected[monkey.index] += 1
+
+    def can_simulate(self, current_monkey: Monkey) -> bool:
+        return current_monkey.index in self.inspected.keys()
+
+    def simulate(self, rounds: int) -> dict[int, int]:
+        path: list[tuple[int, int]] = [self.history[-1]]
+        for monkey, worry in reversed(self.history[:-1]):
+            if monkey == self.history[0][0]:
+                break
+            else:
+                path.append((monkey, worry), 0)
+        done_rounds: Final = len(self.history)
+
+
 class Jungle:
     def __init__(self) -> None:
         self.monkeys: list[Monkey] = []
