@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Final
 
 # Priority queue which prioritizes nodes with minimum distance
 class Queue:
@@ -22,7 +23,8 @@ class Queue:
         return len(self.data) == 0
 
 
-def dijkstra(map: list[int], ncols: int, start_idx: int, end_idx: int) -> int:
+# Inverse dijkstra: given an end position, gives all the distances as if it were started from that point    nd
+def dijkstra(map: list[int], ncols: int, end_idx: int) -> list[int]:
     # Store edges as a dictionary of nodes which contains per each a list of nodes as a tuple (index, distance)
     edges: list[list[tuple[int, int]]] = [[]] * len(map)
     for index in range(len(map)):
@@ -42,17 +44,17 @@ def dijkstra(map: list[int], ncols: int, start_idx: int, end_idx: int) -> int:
         for neighbor in neighbors:
             height_diff = map[neighbor] - map[index]
             if (
-                height_diff > 1
+                height_diff < -1
             ):  # If height is higher than 1 then it's an invalid neighbor
                 continue
             edges[index].append((neighbor, 1))
 
     # Distance from start to end
     distance = [max(map) * len(map)] * len(map)
-    distance[start_idx] = 0
+    distance[end_idx] = 0
 
     queue = Queue()
-    queue.push(0, start_idx)
+    queue.push(0, end_idx)
 
     processed = [False] * len(map)
 
@@ -67,7 +69,7 @@ def dijkstra(map: list[int], ncols: int, start_idx: int, end_idx: int) -> int:
                 distance[b] = distance[a] + d
                 queue.push(distance[b], b)
 
-    return distance[end_idx]
+    return distance
 
 
 def height_maze(input: Path) -> None:
@@ -94,8 +96,15 @@ def height_maze(input: Path) -> None:
                 val = ord(char) - ord("a")
                 maze.append(val)
 
+    distances: Final = dijkstra(maze, cols, end)
+    print(f"It will take {distances[start]} steps to reach the best signal")
+
+    fewest = distances[start]
+    for idx, elevation in enumerate(maze):
+        if elevation == 0:
+            fewest = min(fewest, distances[idx])
     print(
-        f"It will take {dijkstra(maze, cols, start, end)} steps to reach the best signal"
+        f"It will take {fewest} steps to reach the best signal from any square at elevation a"
     )
 
 
