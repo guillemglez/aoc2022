@@ -1,18 +1,19 @@
 from pathlib import Path
 from typing import Callable, Final
+from collections import Counter
 
 
 class Monkey:
     def __init__(self, index: int) -> None:
         self.index = index
-        self.items: list[int] = []
+        self.items: list[Item] = []
         self.operation: list[str] = []
         self.test_call: Callable | None = None
         self.test_conditions: dict[bool, int] = {}
         self.inspected = 0
 
-    def add_item(self, worry_level: int) -> None:
-        self.items.append(worry_level)
+    def add_item(self, item: "Item") -> None:
+        self.items.append(item)
 
     def record_operation(self, op_raw: str) -> None:
         assert "new" not in op_raw  # Should only include what's at right of = sign
@@ -54,47 +55,71 @@ class Monkey:
         outcome = self.test(worry)
         return self.test_conditions[outcome]
 
-    def process(self) -> list[tuple[int, int]]:
-        outcome: list[tuple[int, int]] = []
+    def process(self) -> list[tuple["Item", int]]:
+        outcome: list[tuple[Item, int]] = []
         for item in self.items:
-            new_worry_level = self.operate(item) // 3
+            new_worry_level = self.operate(item.worry) // 3
+            item.inspect(new_worry_level, self)
             throw_to = self.throw_to(new_worry_level)
-            outcome.append((new_worry_level, throw_to))
+            outcome.append((item, throw_to))
             self.inspected += 1
         self.items = []
         return outcome
 
 
 class Item:
-    def __init__(self, worry: int, current_monkey: Monkey) -> None:
+    def __init__(self, worry: int) -> None:
         self.worry = worry
-        self.inspected: dict[int, int] = {current_monkey.index: 1}
-        self.history: list[tuple[int, int]] = [(current_monkey.index, 0)]
+        self.inspected: dict[int, int] = {}
+        self.history: list[int] = []
 
     def inspect(self, new_worry: int, monkey: Monkey) -> None:
-        self.history.append((monkey.index, new_worry - self.worry))
+        self.history.append(monkey.index)
         self.worry = new_worry
-        if monkey.index not in self.inspected.keys():
-            self.inspected[monkey.index] = 0
-        self.inspected[monkey.index] += 1
+        self.inspected[monkey.index] = self.inspected.get(monkey.index, 0) + 1
 
-    def can_simulate(self, current_monkey: Monkey) -> bool:
-        return current_monkey.index in self.inspected.keys()
+    def can_simulate(self) -> bool:
+        return self.inspected[self.history[-1]] > 1
 
-    def simulate(self, rounds: int) -> dict[int, int]:
-        path: list[tuple[int, int]] = [self.history[-1]]
-        for monkey, worry in reversed(self.history[:-1]):
-            if monkey == self.history[0][0]:
-                break
-            else:
-                path.append((monkey, worry), 0)
-        done_rounds: Final = len(self.history)
+    def simulate(self, up_until: int) -> dict[int, int]:
+        assert self.can_simulate()
+        path: list[int] = self.history.copy()
+
+        done_rounds: Final = sum(self.inspected.values())
+        if done_rounds == up_until:
+            return self.inspected
+
+        assert (
+            done_rounds == len(self.inspected) + 1
+        ), f"{done_rounds} != {len(self.history)}+1"
+
+        last_monkey: Final = path.pop()
+        while not path[0] == last_monkey:
+            path.pop(0)
+
+        tours: Final = (up_until - done_rounds) // len(path)
+        for monkey in path:
+            self.inspected[monkey] += tours
+
+        rounds_left: Final = up_until - sum(self.inspected.values())
+        for r in range(rounds_left):
+            self.inspected[path[r]] += 1
+
+        assert sum(self.inspected.values()) == up_until
+        return self.inspected
+
+    def try_simulate(self, up_until: int) -> bool:
+        if not self.can_simulate():
+            return False
+        self.simulate(up_until)
+        return True
 
 
 class Jungle:
     def __init__(self) -> None:
         self.monkeys: list[Monkey] = []
         self.current_round = 0
+        self.simulated: list[Item] = []
 
     def add_monkey(self, monkey: Monkey) -> None:
         assert monkey.index == len(self.monkeys)
@@ -103,17 +128,23 @@ class Jungle:
     def make_round(self) -> None:
         self.current_round += 1
         for monkey in self.monkeys:
-            for worry, recipient in monkey.process():
-                self.monkeys[recipient].add_item(worry)
+            for item, recipient in monkey.process():
+                self.monkeys[recipient].add_item(item)
 
     def run(self, rounds: int) -> None:
-        for round in range(rounds):
+        while sum([len(monkey.items) for monkey in self.monkeys]):
             self.make_round()
+            for monkey in self.monkeys:
+                for item in monkey.items.copy():
+                    if item.try_simulate(rounds):
+                        self.simulated.append(item)
+                        monkey.items.remove(item)
 
     def business_level(self) -> int:
-        inspected: list[int] = []
-        for monkey in self.monkeys:
-            inspected.append(monkey.inspected)
+        simulation: Counter = Counter()
+        for sim in self.simulated:
+            simulation.update(Counter(sim.inspected))
+        inspected = list(simulation.values())
         inspected.sort()
         return inspected[-1] * inspected[-2]
 
@@ -130,7 +161,8 @@ def monkeys(input: Path) -> None:
             if "items" in line_raw:
                 item_list = line_raw.strip().split(":")[-1]
                 for item_raw in item_list.split(","):
-                    jungle.monkeys[-1].add_item(int(item_raw.strip()))
+                    worry = int(item_raw.strip())
+                    jungle.monkeys[-1].add_item(Item(worry))
 
             if "Operation" in line_raw:
                 operation_raw = line_raw.split("=")[-1].strip()
@@ -153,4 +185,4 @@ def monkeys(input: Path) -> None:
 
 
 if __name__ == "__main__":
-    monkeys(Path(__file__).parent / "input")
+    monkeys(Path(__file__).parent / "test")
